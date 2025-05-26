@@ -39,7 +39,6 @@ void ResetGame(Pin pins[MAX_PINS], int *pinCount, bool *gameOver) {
 void setLevel(int level, int *level_pin, Pin pins[MAX_PINS], int *pinCount) {
 
     if (level < 1) level = 1;
-
     if(level >= 9){
         *level_pin = (level-2)*2;
         if(level >=15){*level_pin = (level-2)*2;}
@@ -57,6 +56,8 @@ void setLevel(int level, int *level_pin, Pin pins[MAX_PINS], int *pinCount) {
     if (level >= 12 && level < 18) { obstacle_pin = 4; *level_pin = level;}
     if (level >= 18 && level < 25) { obstacle_pin = 5; *level_pin = level;}
     if (level >= 25 && level < 32) { obstacle_pin = 6; *level_pin = level - 2;}
+
+    if(level >= 32){obstacle_pin=6; *level_pin= level -1;}
 
     for(int i=0; i <= obstacle_pin; i++){
                 
@@ -98,9 +99,15 @@ int main() {
 
     Pin pins[MAX_PINS] = {0};
     
+    int highest_level_reached = 1;
+
+    FILE *sFile = fopen("save_file.txt", "r");
+    if (sFile) {
+        fscanf(sFile, "%d", &highest_level_reached);
+        fclose(sFile);
+    }
 
     int pinCount = 0;
-    int highest_level_reached = 1;
     int current_level = 1;
     int level_pin = 0;
     int pin_start_point = screenHeight - 200;
@@ -116,6 +123,7 @@ int main() {
     bool music_on = true;
     bool sound_on = true;
     bool dark_mode = false;
+    bool reverse_rotation = false;
     
     char pinCountText[10];
     char levelInput[3] = "";
@@ -141,10 +149,17 @@ int main() {
 
 
                 rotationTimer += GetFrameTime();
-                if (fmod(rotationTimer, 3.0f) < 1.0f) {
+                if (fmod(rotationTimer, 3.0f) < 1.0f && current_level > 4) {
                     rotationSpeed = 2.0f;
                 } else {
                     rotationSpeed = 1.0f;
+                }
+                
+                if (current_level > 8) {
+                float reverseCycle = fmod(rotationTimer, 8.0f);
+                reverse_rotation = (reverseCycle >= 6.0f);
+                }else{
+                reverse_rotation = false;
                 }
 
                 for (int i = 0; i < pinCount; i++) {
@@ -156,7 +171,7 @@ int main() {
                             if(sound_on==true) PlaySound(pin_sound);
                         }
                     } else {
-                        pins[i].angle += rotationSpeed;
+                        pins[i].angle += reverse_rotation ? -rotationSpeed : rotationSpeed;
                         if (pins[i].angle >= 360.0f) pins[i].angle -= 360.0f;
                     }
 
@@ -305,20 +320,6 @@ int main() {
                         dark_mode = !(dark_mode);
                     }
                 }
-            
-                // Play Rounds Button
-                /*
-                DrawRectangle(playRoundsBtn.x, playRoundsBtn.y, playRoundsBtn.width, playRoundsBtn.height, DARKGRAY);
-                DrawText("Play Rounds", playRoundsBtn.x + 5, playRoundsBtn.y + 5, 10, WHITE);
-                if (IsMouseButtonPressed(MOUSE_LEFT_BUTTON)) {
-                    Vector2 mouse = GetMousePosition();
-                    if (mouse.x >= playRoundsBtn.x && mouse.x <= playRoundsBtn.x + playRoundsBtn.width &&
-                        mouse.y >= playRoundsBtn.y && mouse.y <= playRoundsBtn.y + playRoundsBtn.height) {
-
-                        }
-                }
-                */
-
 
                 // Replay Level Button
                 DrawRectangle(replayBtn.x, replayBtn.y, replayBtn.width, replayBtn.height, DARKGRAY);
@@ -512,6 +513,12 @@ int main() {
                     highest_level_reached = current_level + 1;
                 }
 
+                FILE *sFile = fopen("save_file.txt", "w");
+                if (sFile){
+                    fprintf(sFile, "%d\n", highest_level_reached);
+                    fclose(sFile);
+                }
+
                 DrawText("Level Passed!", 130, 250, 30, RED);
 
                 int btnWidth = 120;
@@ -603,7 +610,7 @@ int main() {
 
         EndDrawing();
     }
-
+    CloseAudioDevice();
     CloseWindow();
     return 0;
 }
